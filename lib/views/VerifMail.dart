@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import 'NvMdp.dart';
 
@@ -17,15 +19,18 @@ class Verifmail extends StatefulWidget {
 class _MyVerifmail extends State<Verifmail> {
   late Timer _timer;
   int _start = 180;
+  List<String> otp = List.filled(4, '');
+  String? otpCode; // Variable to store the OTP received from the server
 
   @override
   void initState() {
     super.initState();
     startTimer();
+    _requestOtp(); // Request the OTP when the widget is initialized
   }
 
   void startTimer() {
-    _timer = Timer.periodic( const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_start == 0) {
         _timer.cancel();
       } else {
@@ -54,6 +59,45 @@ class _MyVerifmail extends State<Verifmail> {
       _start = 180;
     });
     startTimer();
+  }
+
+  // New method to request the OTP
+  Future<void> _requestOtp() async {
+    final response = await http.post(
+      Uri.parse('YOUR_API_ENDPOINT_HERE'), // Replace with your API endpoint
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': 'chouroukireda12@gmail.com'}), // Replace with the user's email
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      otpCode = data['otp_code']; // Store the OTP code received from the server
+      print('OTP Code: $otpCode'); // Print or log the OTP code for debugging
+    } else {
+      // Handle error response
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to request OTP: ${response.body}')),
+      );
+    }
+  }
+
+  Future<void> _submitOtp() async {
+    // Join the OTP digits to form a single string
+    final otpString = otp.join('');
+
+    // Compare the entered OTP with the generated OTP from the server
+    if (otpString == otpCode) {
+      // OTP verified successfully
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => NvMdp()),
+      );
+    } else {
+      // OTP verification failed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid OTP. Please try again.')),
+      );
+    }
   }
 
   @override
@@ -122,8 +166,11 @@ class _MyVerifmail extends State<Verifmail> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           onChanged: (value) {
-                            if (value.length == 1) {
-                              FocusScope.of(context).nextFocus();
+                            if (value.isNotEmpty) {
+                              otp[index] = value; // Store the OTP digit
+                              if (index < 3) {
+                                FocusScope.of(context).nextFocus();
+                              }
                             }
                           },
                           decoration: InputDecoration(
@@ -168,12 +215,7 @@ class _MyVerifmail extends State<Verifmail> {
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => NvMdp()),
-                  );
-                },
+                onTap: _submitOtp, // Call the submit function
                 child: Container(
                   padding: const EdgeInsets.all(17),
                   margin: const EdgeInsets.symmetric(horizontal: 25),

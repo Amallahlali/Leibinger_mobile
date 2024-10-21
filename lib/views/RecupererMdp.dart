@@ -1,8 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:leibinger_mobile/services/api_service_reset_password.dart';
 import 'package:leibinger_mobile/views/VerifMail.dart';
+
 
 class RecupererMdp extends StatefulWidget {
   const RecupererMdp({super.key, this.title = ''});
@@ -13,23 +17,55 @@ class RecupererMdp extends StatefulWidget {
 }
 
 class _MyRecupererMdp extends State<RecupererMdp> {
+
+  final TextEditingController _emailController = TextEditingController();
+  final ApiServiceResetPassword _apiService = ApiServiceResetPassword();
+  bool _isLoading = false;
+
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez entrer votre adresse e-mail')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _apiService.resetUserPassword(email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Le code de confirmation a été envoyé à votre adresse e-mail.')),
+      );
+      Get.to(Verifmail());  // Navigate to the verification screen
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Échec de la récupération du mot de passe. Veuillez réessayer.')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F5),
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
-      body: SingleChildScrollView(
+      body:SingleChildScrollView(
         child: Container(
           height: MediaQuery.of(context).size.height,
           padding: const EdgeInsets.symmetric(horizontal: 1-.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              const SizedBox(height: 170),
               Padding(
+
                 padding: const EdgeInsets.only(top: 210),
                 child: Text(
                   "Récupérer le mot de passe",
@@ -60,6 +96,7 @@ class _MyRecupererMdp extends State<RecupererMdp> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 25),
                 child: TextField(
+                  controller: _emailController,
                   decoration: InputDecoration(
                     prefixIcon: Padding(
                       padding: const EdgeInsets.only(left: 12.0),
@@ -108,13 +145,7 @@ class _MyRecupererMdp extends State<RecupererMdp> {
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) =>  Verifmail()
-                    ),
-                  );
-                },
+                onTap: _isLoading ? null : _resetPassword,
                 child: Container(
                   padding: const EdgeInsets.all(17),
                   margin: const EdgeInsets.symmetric(horizontal: 25),
@@ -170,6 +201,7 @@ class _MyRecupererMdp extends State<RecupererMdp> {
               ),
             ],
           ),
+
         ),
       ),
     );
