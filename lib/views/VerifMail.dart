@@ -3,9 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
+import 'package:leibinger_mobile/services/otp_service.dart';
 import 'NvMdp.dart';
 
 class Verifmail extends StatefulWidget {
@@ -19,14 +17,15 @@ class Verifmail extends StatefulWidget {
 class _MyVerifmail extends State<Verifmail> {
   late Timer _timer;
   int _start = 180;
-  List<String> otp = List.filled(4, '');
-  String? otpCode; // Variable to store the OTP received from the server
+  List<String> otpDigits = List.filled(4, ''); // Renommée pour éviter le conflit
+  String? otpCode;
+  TextEditingController otpController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     startTimer();
-    _requestOtp(); // Request the OTP when the widget is initialized
+    fetchOTP(); // Appel à fetchOTP pour obtenir l'OTP au démarrage
   }
 
   void startTimer() {
@@ -59,43 +58,37 @@ class _MyVerifmail extends State<Verifmail> {
       _start = 180;
     });
     startTimer();
+    fetchOTP(); // Refaire une requête OTP lors de la réinitialisation du minuteur
   }
 
-  // New method to request the OTP
-  Future<void> _requestOtp() async {
-    final response = await http.post(
-      Uri.parse('YOUR_API_ENDPOINT_HERE'), // Replace with your API endpoint
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'email': 'chouroukireda12@gmail.com'}), // Replace with the user's email
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      otpCode = data['otp_code']; // Store the OTP code received from the server
-      print('OTP Code: $otpCode'); // Print or log the OTP code for debugging
+  // Fonction pour obtenir l'OTP
+  Future<void> fetchOTP() async {
+    String? otpReceived = await OtpService.fetchOTP();
+    setState(() {
+      otpCode = otpReceived;
+    });
+    if (otpReceived != null) {
+      print("Votre OTP est : $otpReceived");
     } else {
-      // Handle error response
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to request OTP: ${response.body}')),
-      );
+      print('Erreur lors de la récupération de l\'OTP');
     }
   }
 
-  Future<void> _submitOtp() async {
-    // Join the OTP digits to form a single string
-    final otpString = otp.join('');
-
-    // Compare the entered OTP with the generated OTP from the server
-    if (otpString == otpCode) {
-      // OTP verified successfully
+  // Fonction pour vérifier l'OTP
+  Future<void> verifyOTP() async {
+    final otpInput = otpDigits.join(); // Joindre les chiffres pour former l'OTP complet
+    bool isVerified = await OtpService.verifyOTP(otpInput);
+    if (isVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('OTP vérifié avec succès')),
+      );
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => NvMdp()),
       );
     } else {
-      // OTP verification failed
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid OTP. Please try again.')),
+        SnackBar(content: Text('OTP incorrect ou invalide')),
       );
     }
   }
@@ -167,7 +160,7 @@ class _MyVerifmail extends State<Verifmail> {
                           ],
                           onChanged: (value) {
                             if (value.isNotEmpty) {
-                              otp[index] = value; // Store the OTP digit
+                              otpDigits[index] = value;
                               if (index < 3) {
                                 FocusScope.of(context).nextFocus();
                               }
@@ -215,7 +208,7 @@ class _MyVerifmail extends State<Verifmail> {
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: _submitOtp, // Call the submit function
+                onTap: verifyOTP, // Appel à verifyOTP
                 child: Container(
                   padding: const EdgeInsets.all(17),
                   margin: const EdgeInsets.symmetric(horizontal: 25),

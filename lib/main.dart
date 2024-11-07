@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         useMaterial3: true,
       ),
-      home: const Homelogin(title: 'Home Login Page'),
+      home: Homelogin(title: 'Home Login Page'),
     );
   }
 }
